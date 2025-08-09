@@ -74,23 +74,9 @@
             background-color: #e9ecef; 
             border-radius: 8px; 
         }
-        #loading { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 18px; 
-            color: #555; 
-        }
-        #error-message { 
-            color: #dc3545; 
-            text-align: center; 
-            padding: 10px; 
-            display: none; 
-        }
     </style>
 </head>
 <body>
-    <div id="loading">Carregando dados...</div>
-    <div id="error-message"></div>
     <h1>Sistema de Gestão Empresarial</h1>
     <div class="tab-nav">
         <button onclick="showTab('estoque')" class="active">Estoque</button>
@@ -246,84 +232,21 @@
             minimumFractionDigits: 2
         });
 
-        // URL do Google Apps Script
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzlgyU_x7lC493vgKijor0Dbr5Cq8ln6iwXhcWvMOtm1_Y3UYK3RyOXPyD4fp_VGzR0/exec';
-
         // Dados
-        let estoque = [];
-        let vendas = [];
-        let fornecedores = [];
-        let geralMovimentacoes = [];
-        let geralCapitalInicial = 0;
+        let estoque = JSON.parse(localStorage.getItem('estoque')) || [];
+        let vendas = JSON.parse(localStorage.getItem('vendas')) || [];
+        let fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
+        let geralMovimentacoes = JSON.parse(localStorage.getItem('geralMovimentacoes')) || [];
+        let geralCapitalInicial = parseFloat(localStorage.getItem('geralCapitalInicial')) || 0;
 
-        // Função para exibir mensagens de erro
-        function mostrarErro(mensagem) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = mensagem;
-            errorDiv.style.display = 'block';
-        }
-
-        // Função para ocultar o indicador de carregamento
-        function ocultarLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
-
-        // Função para carregar dados da planilha
-        async function carregarDados() {
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                if (!response.ok) throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
-                const dados = await response.json();
-                
-                estoque = dados.estoque || [];
-                vendas = dados.vendas || [];
-                fornecedores = dados.fornecedores || [];
-                geralMovimentacoes = dados.geralMovimentacoes || [];
-                geralCapitalInicial = parseFloat(dados.geralCapitalInicial) || 0;
-
-                atualizarTabelaEstoque();
-                atualizarTabelaVendas();
-                atualizarTabelaFornecedores();
-                atualizarTabelaGeral();
-                atualizarSelectProdutos();
-                atualizarFinanceiro();
-                atualizarResumoGeral();
-                ocultarLoading();
-            } catch (error) {
-                console.error('Erro ao carregar dados:', error);
-                mostrarErro('Não foi possível carregar os dados da planilha. Verifique o console para detalhes.');
-                // Inicializa a interface mesmo com erro
-                atualizarTabelaEstoque();
-                atualizarTabelaVendas();
-                atualizarTabelaFornecedores();
-                atualizarTabelaGeral();
-                atualizarSelectProdutos();
-                atualizarFinanceiro();
-                atualizarResumoGeral();
-                ocultarLoading();
-            }
-        }
-
-        // Função para salvar dados na planilha
-        async function salvarDados() {
-            try {
-                const dados = { estoque, vendas, fornecedores, geralMovimentacoes, geralCapitalInicial };
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dados)
-                });
-                if (!response.ok) throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error('Falha ao salvar dados');
-            } catch (error) {
-                console.error('Erro ao salvar dados:', error);
-                mostrarErro('Não foi possível salvar os dados na planilha. Verifique o console para detalhes.');
-            }
-        }
+        // Inicialização
+        atualizarTabelaEstoque();
+        atualizarTabelaVendas();
+        atualizarTabelaFornecedores();
+        atualizarTabelaGeral();
+        atualizarSelectProdutos();
+        atualizarFinanceiro();
+        atualizarResumoGeral();
 
         // Funções de Estoque
         function adicionarProduto() {
@@ -612,6 +535,14 @@
         }
 
         // Funções Auxiliares
+        function salvarDados() {
+            localStorage.setItem('estoque', JSON.stringify(estoque));
+            localStorage.setItem('vendas', JSON.stringify(vendas));
+            localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
+            localStorage.setItem('geralMovimentacoes', JSON.stringify(geralMovimentacoes));
+            localStorage.setItem('geralCapitalInicial', geralCapitalInicial);
+        }
+
         function limparFormulario(tipo) {
             if (tipo === 'produto') {
                 document.getElementById('produtoCodigo').value = '';
@@ -642,9 +573,6 @@
             document.querySelectorAll('.tab-nav button').forEach(btn => btn.classList.remove('active'));
             document.querySelector(`.tab-nav button[onclick="showTab('${tabId}')"]`).classList.add('active');
         }
-
-        // Inicializar
-        carregarDados();
     </script>
 </body>
 </html>
