@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão Empresarial</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        h1 { text-align: center; color: #333; }
+        h2 { color: #444; margin-top: 20px; }
+        .tab { 
+            border: 1px solid #ccc; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            background-color: #fff; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #f2f2f2; 
+            color: #333; 
+        }
+        button { 
+            padding: 8px 12px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            background-color: #28a745; 
+            color: white; 
+        }
+        button.delete { 
+            background-color: #dc3545; 
+        }
+        input, select { 
+            padding: 6px; 
+            margin: 5px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+        }
+        .form-container { 
+            margin-bottom: 20px; 
+            background-color: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 8px; 
+        }
+        .tab-nav { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+        }
+        .tab-nav button { 
+            background-color: #007bff; 
+        }
+        .tab-nav button.active { 
+            background-color: #0056b3; 
+        }
+        .hidden { 
+            display: none; 
+        }
+        .summary { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background-color: #e9ecef; 
+            border-radius: 8px; 
+        }
+        #loading { 
+            text-align: center; 
+            padding: 20px; 
+            font-size: 18px; 
+            color: #555; 
+        }
+        #error-message { 
+            color: #dc3545; 
+            text-align: center; 
+            padding: 10px; 
+            display: none; 
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Carregando dados...</div>
+    <div id="error-message"></div>
+    <h1>Sistema de Gestão Empresarial</h1>
+    <div class="tab-nav">
+        <button onclick="showTab('estoque')" class="active">Estoque</button>
+        <button onclick="showTab('vendas')">Vendas</button>
+        <button onclick="showTab('fornecedores')">Fornecedores</button>
+        <button onclick="showTab('financeiro')">Financeiro</button>
+        <button onclick="showTab('geral')">Geral</button>
+    </div>
+
+    <!-- Estoque -->
+    <div id="estoque" class="tab">
+        <h2>Gestão de Estoque</h2>
+        <div class="form-container">
+            <input type="text" id="produtoCodigo" placeholder="Código do Produto" required>
+            <input type="text" id="produtoNome" placeholder="Nome do Produto" required>
+            <input type="number" id="produtoQuantidade" placeholder="Quantidade Inicial" min="0" required>
+            <input type="number" id="produtoPrecoCompra" placeholder="Preço de Compra (R$)" min="0" step="0.01" required>
+            <input type="number" id="produtoPrecoVenda" placeholder="Preço de Venda (R$)" min="0" step="0.01" required>
+            <button onclick="adicionarProduto()">Adicionar Produto</button>
+        </div>
+        <table id="tabelaEstoque">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nome</th>
+                    <th>Quantidade Inicial</th>
+                    <th>Entradas</th>
+                    <th>Saídas</th>
+                    <th>Saldo Atual</th>
+                    <th>Preço Compra</th>
+                    <th>Preço Venda</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Vendas -->
+    <div id="vendas" class="tab hidden">
+        <h2>Registro de Vendas</h2>
+        <div class="form-container">
+            <input type="date" id="vendaData" required>
+            <select id="vendaProduto" required>
+                <option value="">Selecione o Produto</option>
+            </select>
+            <input type="number" id="vendaQuantidade" placeholder="Quantidade" min="1" required>
+            <input type="text" id="vendaCliente" placeholder="Nome do Cliente" required>
+            <button onclick="adicionarVenda()">Registrar Venda</button>
+        </div>
+        <table id="tabelaVendas">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Produto</th>
+                    <th>Código</th>
+                    <th>Quantidade</th>
+                    <th>Preço Venda</th>
+                    <th>Cliente</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Fornecedores -->
+    <div id="fornecedores" class="tab hidden">
+        <h2>Gestão de Fornecedores</h2>
+        <div class="form-container">
+            <input type="text" id="fornecedorNome" placeholder="Nome do Fornecedor" required>
+            <input type="date" id="fornecedorDataCompra" required>
+            <input type="number" id="fornecedorValor" placeholder="Valor do Pedido (R$)" min="0" step="0.01" required>
+            <input type="text" id="fornecedorContato" placeholder="Contato" required>
+            <button onclick="adicionarFornecedor()">Adicionar Fornecedor</button>
+        </div>
+        <table id="tabelaFornecedores">
+            <thead>
+                <tr>
+                    <th>Fornecedor</th>
+                    <th>Data Compra</th>
+                    <th>Valor Pedido</th>
+                    <th>Contato</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Financeiro -->
+    <div id="financeiro" class="tab hidden">
+        <h2>Financeiro</h2>
+        <table id="tabelaFinanceiro">
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Valor Total em Mercadoria (Custo)</td><td id="valorMercadoria">R$ 0,00</td></tr>
+                <tr><td>Valor Total de Vendas</td><td id="valorVendas">R$ 0,00</td></tr>
+                <tr><td>Valor Total de Saídas (Custo)</td><td id="valorSaidas">R$ 0,00</td></tr>
+                <tr><td>Saldo (Lucro)</td><td id="saldoFinanceiro">R$ 0,00</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Geral -->
+    <div id="geral" class="tab hidden">
+        <h2>Controle Geral</h2>
+        <div class="form-container">
+            <h3>Definir Capital Inicial</h3>
+            <input type="number" id="geralCapitalInicial" placeholder="Capital Inicial (R$)" min="0" step="0.01">
+            <button onclick="definirCapitalGeral()">Definir Capital</button>
+        </div>
+        <div class="form-container">
+            <h3>Registrar Saída (Compra de Mercadoria)</h3>
+            <input type="date" id="geralDataMovimentacao" required>
+            <input type="number" id="geralValorMovimentacao" placeholder="Valor (R$)" min="0" step="0.01" required>
+            <input type="text" id="geralDescricaoMovimentacao" placeholder="Descrição (ex: Compra de Mercadoria)" required>
+            <button onclick="adicionarMovimentacaoGeral()">Adicionar Saída</button>
+        </div>
+        <table id="tabelaGeral">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Descrição</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="summary">
+            <h3>Resumo Geral</h3>
+            <table>
+                <tr><td>Capital Inicial</td><td id="geralResumoCapitalInicial">R$ 0,00</td></tr>
+                <tr><td>Total de Entradas (Lucro)</td><td id="geralResumoEntradas">R$ 0,00</td></tr>
+                <tr><td>Total de Saídas (Compras)</td><td id="geralResumoSaidas">R$ 0,00</td></tr>
+                <tr><td>Saldo Atual (Capital + Lucro - Saídas)</td><td id="geralResumoSaldo">R$ 0,00</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Configuração do formatador para Real (R$)
+        const formatter = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2
+        });
+
+        // URL do Google Apps Script
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzlgyU_x7lC493vgKijor0Dbr5Cq8ln6iwXhcWvMOtm1_Y3UYK3RyOXPyD4fp_VGzR0/exec';
+
+        // Dados
+        let estoque = [];
+        let vendas = [];
+        let fornecedores = [];
+        let geralMovimentacoes = [];
+        let geralCapitalInicial = 0;
+
+        // Função para exibir mensagens de erro
+        function mostrarErro(mensagem) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = mensagem;
+            errorDiv.style.display = 'block';
+        }
+
+        // Função para ocultar o indicador de carregamento
+        function ocultarLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Função para carregar dados da planilha
+        async function carregarDados() {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+                const dados = await response.json();
+                
+                estoque = dados.estoque || [];
+                vendas = dados.vendas || [];
+                fornecedores = dados.fornecedores || [];
+                geralMovimentacoes = dados.geralMovimentacoes || [];
+                geralCapitalInicial = parseFloat(dados.geralCapitalInicial) || 0;
+
+                atualizarTabelaEstoque();
+                atualizarTabelaVendas();
+                atualizarTabelaFornecedores();
+                atualizarTabelaGeral();
+                atualizarSelectProdutos();
+                atualizarFinanceiro();
+                atualizarResumoGeral();
+                ocultarLoading();
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                mostrarErro('Não foi possível carregar os dados da planilha. Verifique o console para detalhes.');
+                // Inicializa a interface mesmo com erro
+                atualizarTabelaEstoque();
+                atualizarTabelaVendas();
+                atualizarTabelaFornecedores();
+                atualizarTabelaGeral();
+                atualizarSelectProdutos();
+                atualizarFinanceiro();
+                atualizarResumoGeral();
+                ocultarLoading();
+            }
+        }
+
+        // Função para salvar dados na planilha
+        async function salvarDados() {
+            try {
+                const dados = { estoque, vendas, fornecedores, geralMovimentacoes, geralCapitalInicial };
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                if (!response.ok) throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error('Falha ao salvar dados');
+            } catch (error) {
+                console.error('Erro ao salvar dados:', error);
+                mostrarErro('Não foi possível salvar os dados na planilha. Verifique o console para detalhes.');
+            }
+        }
+
+        // Funções de Estoque
+        function adicionarProduto() {
+            const codigo = document.getElementById('produtoCodigo').value;
+            const nome = document.getElementById('produtoNome').value;
+            const quantidade = parseInt(document.getElementById('produtoQuantidade').value);
+            const precoCompra = parseFloat(document.getElementById('produtoPrecoCompra').value);
+            const precoVenda = parseFloat(document.getElementById('produtoPrecoVenda').value);
+
+            if (!codigo || !nome || isNaN(quantidade) || isNaN(precoCompra) || isNaN(precoVenda)) {
+                alert('Preencha todos os campos corretamente.');
+                return;
+            }
+
+            const produtoExistente = estoque.find(p => p.codigo === codigo);
+            if (produtoExistente) {
+                alert('Código de produto já existe.');
+                return;
+            }
+
+            estoque.push({
+                codigo,
+                nome,
+                quantidadeInicial: quantidade,
+                entradas: 0,
+                saidas: 0,
+                saldoAtual: quantidade,
+                precoCompra,
+                precoVenda
+            });
+
+            salvarDados();
+            atualizarTabelaEstoque();
+            atualizarSelectProdutos();
+            limparFormulario('produto');
+        }
+
+        function atualizarTabelaEstoque() {
+            const tbody = document.querySelector('#tabelaEstoque tbody');
+            tbody.innerHTML = '';
+            estoque.forEach((produto, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${produto.codigo}</td>
+                    <td>${produto.nome}</td>
+                    <td>${produto.quantidadeInicial}</td>
+                    <td>${produto.entradas}</td>
+                    <td>${produto.saidas}</td>
+                    <td>${produto.saldoAtual}</td>
+                    <td>${formatter.format(produto.precoCompra)}</td>
+                    <td>${formatter.format(produto.precoVenda)}</td>
+                    <td><button class="delete" onclick="removerProduto(${index})">Excluir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            atualizarFinanceiro();
+        }
+
+        function removerProduto(index) {
+            if (confirm('Deseja excluir este produto?')) {
+                estoque.splice(index, 1);
+                salvarDados();
+                atualizarTabelaEstoque();
+                atualizarSelectProdutos();
+            }
+        }
+
+        // Funções de Vendas
+        function atualizarSelectProdutos() {
+            const select = document.getElementById('vendaProduto');
+            select.innerHTML = '<option value="">Selecione o Produto</option>';
+            estoque.forEach(produto => {
+                const option = document.createElement('option');
+                option.value = produto.codigo;
+                option.textContent = `${produto.codigo} - ${produto.nome}`;
+                select.appendChild(option);
+            });
+        }
+
+        function adicionarVenda() {
+            const data = document.getElementById('vendaData').value;
+            const codigo = document.getElementById('vendaProduto').value;
+            const quantidade = parseInt(document.getElementById('vendaQuantidade').value);
+            const cliente = document.getElementById('vendaCliente').value;
+
+            if (!data || !codigo || isNaN(quantidade) || !cliente) {
+                alert('Preencha todos os campos corretamente.');
+                return;
+            }
+
+            const produto = estoque.find(p => p.codigo === codigo);
+            if (!produto) {
+                alert('Produto não encontrado.');
+                return;
+            }
+
+            if (produto.saldoAtual < quantidade) {
+                alert('Quantidade em estoque insuficiente.');
+                return;
+            }
+
+            produto.saidas += quantidade;
+            produto.saldoAtual = produto.quantidadeInicial + produto.entradas - produto.saidas;
+
+            vendas.push({
+                data,
+                codigo,
+                nome: produto.nome,
+                quantidade,
+                precoVenda: produto.precoVenda,
+                cliente
+            });
+
+            salvarDados();
+            atualizarTabelaEstoque();
+            atualizarTabelaVendas();
+            atualizarResumoGeral();
+            limparFormulario('venda');
+        }
+
+        function atualizarTabelaVendas() {
+            const tbody = document.querySelector('#tabelaVendas tbody');
+            tbody.innerHTML = '';
+            vendas.forEach((venda, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${venda.data}</td>
+                    <td>${venda.nome}</td>
+                    <td>${venda.codigo}</td>
+                    <td>${venda.quantidade}</td>
+                    <td>${formatter.format(venda.precoVenda)}</td>
+                    <td>${venda.cliente}</td>
+                    <td><button class="delete" onclick="removerVenda(${index})">Excluir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            atualizarFinanceiro();
+        }
+
+        function removerVenda(index) {
+            if (confirm('Deseja excluir esta venda?')) {
+                const venda = vendas[index];
+                const produto = estoque.find(p => p.codigo === venda.codigo);
+                if (produto) {
+                    produto.saidas -= venda.quantidade;
+                    produto.saldoAtual = produto.quantidadeInicial + produto.entradas - produto.saidas;
+                }
+                vendas.splice(index, 1);
+                salvarDados();
+                atualizarTabelaEstoque();
+                atualizarTabelaVendas();
+                atualizarResumoGeral();
+            }
+        }
+
+        // Funções de Fornecedores
+        function adicionarFornecedor() {
+            const nome = document.getElementById('fornecedorNome').value;
+            const dataCompra = document.getElementById('fornecedorDataCompra').value;
+            const valor = parseFloat(document.getElementById('fornecedorValor').value);
+            const contato = document.getElementById('fornecedorContato').value;
+
+            if (!nome || !dataCompra || isNaN(valor) || !contato) {
+                alert('Preencha todos os campos corretamente.');
+                return;
+            }
+
+            fornecedores.push({ nome, dataCompra, valor, contato });
+            salvarDados();
+            atualizarTabelaFornecedores();
+            limparFormulario('fornecedor');
+        }
+
+        function atualizarTabelaFornecedores() {
+            const tbody = document.querySelector('#tabelaFornecedores tbody');
+            tbody.innerHTML = '';
+            fornecedores.forEach((fornecedor, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${fornecedor.nome}</td>
+                    <td>${fornecedor.dataCompra}</td>
+                    <td>${formatter.format(fornecedor.valor)}</td>
+                    <td>${fornecedor.contato}</td>
+                    <td><button class="delete" onclick="removerFornecedor(${index})">Excluir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function removerFornecedor(index) {
+            if (confirm('Deseja excluir este fornecedor?')) {
+                fornecedores.splice(index, 1);
+                salvarDados();
+                atualizarTabelaFornecedores();
+            }
+        }
+
+        // Funções Financeiro
+        function atualizarFinanceiro() {
+            const valorMercadoria = estoque.reduce((sum, p) => sum + (p.saldoAtual * p.precoCompra), 0);
+            const valorVendas = vendas.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
+            const valorSaidas = vendas.reduce((sum, v) => {
+                const produto = estoque.find(p => p.codigo === v.codigo);
+                return sum + (v.quantidade * (produto ? produto.precoCompra : 0));
+            }, 0);
+            const saldo = valorVendas - valorSaidas;
+
+            document.getElementById('valorMercadoria').textContent = formatter.format(valorMercadoria);
+            document.getElementById('valorVendas').textContent = formatter.format(valorVendas);
+            document.getElementById('valorSaidas').textContent = formatter.format(valorSaidas);
+            document.getElementById('saldoFinanceiro').textContent = formatter.format(saldo);
+
+            atualizarResumoGeral();
+        }
+
+        // Funções Geral
+        function definirCapitalGeral() {
+            const capital = parseFloat(document.getElementById('geralCapitalInicial').value);
+            if (isNaN(capital) || capital < 0) {
+                alert('Insira um valor válido para o capital inicial.');
+                return;
+            }
+            geralCapitalInicial = capital;
+            salvarDados();
+            atualizarResumoGeral();
+            document.getElementById('geralCapitalInicial').value = '';
+        }
+
+        function adicionarMovimentacaoGeral() {
+            const data = document.getElementById('geralDataMovimentacao').value;
+            const valor = parseFloat(document.getElementById('geralValorMovimentacao').value);
+            const descricao = document.getElementById('geralDescricaoMovimentacao').value;
+
+            if (!data || isNaN(valor) || valor <= 0 || !descricao) {
+                alert('Preencha todos os campos corretamente.');
+                return;
+            }
+
+            geralMovimentacoes.push({ tipo: 'saida', data, valor, descricao });
+            salvarDados();
+            atualizarTabelaGeral();
+            limparFormulario('geral');
+        }
+
+        function atualizarTabelaGeral() {
+            const tbody = document.querySelector('#tabelaGeral tbody');
+            tbody.innerHTML = '';
+            geralMovimentacoes.forEach((mov, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${mov.data}</td>
+                    <td>Saída (Compra)</td>
+                    <td>${formatter.format(mov.valor)}</td>
+                    <td>${mov.descricao}</td>
+                    <td><button class="delete" onclick="removerMovimentacaoGeral(${index})">Excluir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            atualizarResumoGeral();
+        }
+
+        function removerMovimentacaoGeral(index) {
+            if (confirm('Deseja excluir esta movimentação?')) {
+                geralMovimentacoes.splice(index, 1);
+                salvarDados();
+                atualizarTabelaGeral();
+            }
+        }
+
+        function atualizarResumoGeral() {
+            const valorVendas = vendas.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
+            const valorSaidas = vendas.reduce((sum, v) => {
+                const produto = estoque.find(p => p.codigo === v.codigo);
+                return sum + (v.quantidade * (produto ? produto.precoCompra : 0));
+            }, 0);
+            const totalEntradas = valorVendas - valorSaidas;
+            const totalSaidas = geralMovimentacoes
+                .filter(m => m.tipo === 'saida')
+                .reduce((sum, m) => sum + m.valor, 0);
+            const saldo = geralCapitalInicial + totalEntradas - totalSaidas;
+
+            document.getElementById('geralResumoCapitalInicial').textContent = formatter.format(geralCapitalInicial);
+            document.getElementById('geralResumoEntradas').textContent = formatter.format(totalEntradas);
+            document.getElementById('geralResumoSaidas').textContent = formatter.format(totalSaidas);
+            document.getElementById('geralResumoSaldo').textContent = formatter.format(saldo);
+        }
+
+        // Funções Auxiliares
+        function limparFormulario(tipo) {
+            if (tipo === 'produto') {
+                document.getElementById('produtoCodigo').value = '';
+                document.getElementById('produtoNome').value = '';
+                document.getElementById('produtoQuantidade').value = '';
+                document.getElementById('produtoPrecoCompra').value = '';
+                document.getElementById('produtoPrecoVenda').value = '';
+            } else if (tipo === 'venda') {
+                document.getElementById('vendaData').value = '';
+                document.getElementById('vendaProduto').value = '';
+                document.getElementById('vendaQuantidade').value = '';
+                document.getElementById('vendaCliente').value = '';
+            } else if (tipo === 'fornecedor') {
+                document.getElementById('fornecedorNome').value = '';
+                document.getElementById('fornecedorDataCompra').value = '';
+                document.getElementById('fornecedorValor').value = '';
+                document.getElementById('fornecedorContato').value = '';
+            } else if (tipo === 'geral') {
+                document.getElementById('geralDataMovimentacao').value = '';
+                document.getElementById('geralValorMovimentacao').value = '';
+                document.getElementById('geralDescricaoMovimentacao').value = '';
+            }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelectorAll('.tab-nav button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-nav button[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // Inicializar
+        carregarDados();
+    </script>
+</body>
+</html>
