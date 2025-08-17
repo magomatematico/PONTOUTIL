@@ -602,6 +602,22 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste Firebase</title>
+</head>
+<body>
+  <h1>Meu site com Firebase 🚀</h1>
+
+  <button onclick="salvarUsuario('Maria', 25)">Salvar Usuário</button>
+  <button onclick="carregarUsuarios()">Carregar Usuários</button>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
+
 </script>
 
 </html>
