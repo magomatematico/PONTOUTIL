@@ -224,7 +224,25 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkh-Is_r0BwuQcnEW1lzIAxS49q3ZkJIc",
+            authDomain: "ponto-util-51954.firebaseapp.com",
+            projectId: "ponto-util-51954",
+            storageBucket: "ponto-util-51954.firebasestorage.app",
+            messagingSenderId: "349199654027",
+            appId: "1:349199654027:web:4defbd961856b2e9d6488e",
+            measurementId: "G-T3JVXWSBJN"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         // Configuração do formatador para Real (R$)
         const formatter = new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -232,24 +250,20 @@
             minimumFractionDigits: 2
         });
 
-        // Dados
-        let estoque = JSON.parse(localStorage.getItem('estoque')) || [];
-        let vendas = JSON.parse(localStorage.getItem('vendas')) || [];
-        let fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
-        let geralMovimentacoes = JSON.parse(localStorage.getItem('geralMovimentacoes')) || [];
-        let geralCapitalInicial = parseFloat(localStorage.getItem('geralCapitalInicial')) || 0;
-
         // Inicialização
-        atualizarTabelaEstoque();
-        atualizarTabelaVendas();
-        atualizarTabelaFornecedores();
-        atualizarTabelaGeral();
-        atualizarSelectProdutos();
-        atualizarFinanceiro();
-        atualizarResumoGeral();
+        async function init() {
+            await atualizarTabelaEstoque();
+            await atualizarTabelaVendas();
+            await atualizarTabelaFornecedores();
+            await atualizarTabelaGeral();
+            await atualizarSelectProdutos();
+            await atualizarFinanceiro();
+            await atualizarResumoGeral();
+        }
+        init();
 
         // Funções de Estoque
-        function adicionarProduto() {
+        async function adicionarProduto() {
             const codigo = document.getElementById('produtoCodigo').value;
             const nome = document.getElementById('produtoNome').value;
             const quantidade = parseInt(document.getElementById('produtoQuantidade').value);
@@ -261,13 +275,16 @@
                 return;
             }
 
-            const produtoExistente = estoque.find(p => p.codigo === codigo);
-            if (produtoExistente) {
+            // Verificar se código existe
+            const q = collection(db, 'estoque');
+            const snapshot = await getDocs(q);
+            const exists = snapshot.docs.some(d => d.data().codigo === codigo);
+            if (exists) {
                 alert('Código de produto já existe.');
                 return;
             }
 
-            estoque.push({
+            await addDoc(collection(db, 'estoque'), {
                 codigo,
                 nome,
                 quantidadeInicial: quantidade,
@@ -278,16 +295,17 @@
                 precoVenda
             });
 
-            salvarDados();
-            atualizarTabelaEstoque();
-            atualizarSelectProdutos();
+            await atualizarTabelaEstoque();
+            await atualizarSelectProdutos();
             limparFormulario('produto');
         }
 
-        function atualizarTabelaEstoque() {
+        async function atualizarTabelaEstoque() {
             const tbody = document.querySelector('#tabelaEstoque tbody');
             tbody.innerHTML = '';
-            estoque.forEach((produto, index) => {
+            const querySnapshot = await getDocs(collection(db, 'estoque'));
+            querySnapshot.forEach((d) => {
+                const produto = d.data();
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${produto.codigo}</td>
@@ -298,27 +316,28 @@
                     <td>${produto.saldoAtual}</td>
                     <td>${formatter.format(produto.precoCompra)}</td>
                     <td>${formatter.format(produto.precoVenda)}</td>
-                    <td><button class="delete" onclick="removerProduto(${index})">Excluir</button></td>
+                    <td><button class="delete" onclick="removerProduto('${d.id}')">Excluir</button></td>
                 `;
                 tbody.appendChild(tr);
             });
-            atualizarFinanceiro();
+            await atualizarFinanceiro();
         }
 
-        function removerProduto(index) {
+        async function removerProduto(id) {
             if (confirm('Deseja excluir este produto?')) {
-                estoque.splice(index, 1);
-                salvarDados();
-                atualizarTabelaEstoque();
-                atualizarSelectProdutos();
+                await deleteDoc(doc(db, 'estoque', id));
+                await atualizarTabelaEstoque();
+                await atualizarSelectProdutos();
             }
         }
 
         // Funções de Vendas
-        function atualizarSelectProdutos() {
+        async function atualizarSelectProdutos() {
             const select = document.getElementById('vendaProduto');
             select.innerHTML = '<option value="">Selecione o Produto</option>';
-            estoque.forEach(produto => {
+            const querySnapshot = await getDocs(collection(db, 'estoque'));
+            querySnapshot.forEach((d) => {
+                const produto = d.data();
                 const option = document.createElement('option');
                 option.value = produto.codigo;
                 option.textContent = `${produto.codigo} - ${produto.nome}`;
@@ -326,7 +345,7 @@
             });
         }
 
-        function adicionarVenda() {
+        async function adicionarVenda() {
             const data = document.getElementById('vendaData').value;
             const codigo = document.getElementById('vendaProduto').value;
             const quantidade = parseInt(document.getElementById('vendaQuantidade').value);
@@ -337,7 +356,17 @@
                 return;
             }
 
-            const produto = estoque.find(p => p.codigo === codigo);
+            // Encontrar produto
+            const estoqueSnap = await getDocs(collection(db, 'estoque'));
+            let produtoDoc = null;
+            let produto = null;
+            estoqueSnap.forEach((d) => {
+                if (d.data().codigo === codigo) {
+                    produtoDoc = d;
+                    produto = d.data();
+                }
+            });
+
             if (!produto) {
                 alert('Produto não encontrado.');
                 return;
@@ -348,10 +377,16 @@
                 return;
             }
 
-            produto.saidas += quantidade;
-            produto.saldoAtual = produto.quantidadeInicial + produto.entradas - produto.saidas;
+            // Atualizar estoque
+            const newSaidas = produto.saidas + quantidade;
+            const newSaldo = produto.quantidadeInicial + produto.entradas - newSaidas;
+            await updateDoc(doc(db, 'estoque', produtoDoc.id), {
+                saidas: newSaidas,
+                saldoAtual: newSaldo
+            });
 
-            vendas.push({
+            // Adicionar venda
+            await addDoc(collection(db, 'vendas'), {
                 data,
                 codigo,
                 nome: produto.nome,
@@ -360,17 +395,18 @@
                 cliente
             });
 
-            salvarDados();
-            atualizarTabelaEstoque();
-            atualizarTabelaVendas();
-            atualizarResumoGeral();
+            await atualizarTabelaEstoque();
+            await atualizarTabelaVendas();
+            await atualizarResumoGeral();
             limparFormulario('venda');
         }
 
-        function atualizarTabelaVendas() {
+        async function atualizarTabelaVendas() {
             const tbody = document.querySelector('#tabelaVendas tbody');
             tbody.innerHTML = '';
-            vendas.forEach((venda, index) => {
+            const querySnapshot = await getDocs(collection(db, 'vendas'));
+            querySnapshot.forEach((d) => {
+                const venda = d.data();
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${venda.data}</td>
@@ -379,31 +415,47 @@
                     <td>${venda.quantidade}</td>
                     <td>${formatter.format(venda.precoVenda)}</td>
                     <td>${venda.cliente}</td>
-                    <td><button class="delete" onclick="removerVenda(${index})">Excluir</button></td>
+                    <td><button class="delete" onclick="removerVenda('${d.id}')">Excluir</button></td>
                 `;
                 tbody.appendChild(tr);
             });
-            atualizarFinanceiro();
+            await atualizarFinanceiro();
         }
 
-        function removerVenda(index) {
+        async function removerVenda(id) {
             if (confirm('Deseja excluir esta venda?')) {
-                const venda = vendas[index];
-                const produto = estoque.find(p => p.codigo === venda.codigo);
+                const vendaDoc = await getDoc(doc(db, 'vendas', id));
+                const venda = vendaDoc.data();
+
+                // Encontrar produto
+                const estoqueSnap = await getDocs(collection(db, 'estoque'));
+                let produtoDoc = null;
+                let produto = null;
+                estoqueSnap.forEach((d) => {
+                    if (d.data().codigo === venda.codigo) {
+                        produtoDoc = d;
+                        produto = d.data();
+                    }
+                });
+
                 if (produto) {
-                    produto.saidas -= venda.quantidade;
-                    produto.saldoAtual = produto.quantidadeInicial + produto.entradas - produto.saidas;
+                    const newSaidas = produto.saidas - venda.quantidade;
+                    const newSaldo = produto.quantidadeInicial + produto.entradas - newSaidas;
+                    await updateDoc(doc(db, 'estoque', produtoDoc.id), {
+                        saidas: newSaidas,
+                        saldoAtual: newSaldo
+                    });
                 }
-                vendas.splice(index, 1);
-                salvarDados();
-                atualizarTabelaEstoque();
-                atualizarTabelaVendas();
-                atualizarResumoGeral();
+
+                await deleteDoc(doc(db, 'vendas', id));
+                await atualizarTabelaEstoque();
+                await atualizarTabelaVendas();
+                await atualizarResumoGeral();
             }
         }
 
         // Funções de Fornecedores
-        function adicionarFornecedor() {
+        async function adicionarFornecedor() {
             const nome = document.getElementById('fornecedorNome').value;
             const dataCompra = document.getElementById('fornecedorDataCompra').value;
             const valor = parseFloat(document.getElementById('fornecedorValor').value);
@@ -414,42 +466,48 @@
                 return;
             }
 
-            fornecedores.push({ nome, dataCompra, valor, contato });
-            salvarDados();
-            atualizarTabelaFornecedores();
+            await addDoc(collection(db, 'fornecedores'), { nome, dataCompra, valor, contato });
+            await atualizarTabelaFornecedores();
             limparFormulario('fornecedor');
         }
 
-        function atualizarTabelaFornecedores() {
+        async function atualizarTabelaFornecedores() {
             const tbody = document.querySelector('#tabelaFornecedores tbody');
             tbody.innerHTML = '';
-            fornecedores.forEach((fornecedor, index) => {
+            const querySnapshot = await getDocs(collection(db, 'fornecedores'));
+            querySnapshot.forEach((d) => {
+                const fornecedor = d.data();
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${fornecedor.nome}</td>
                     <td>${fornecedor.dataCompra}</td>
                     <td>${formatter.format(fornecedor.valor)}</td>
                     <td>${fornecedor.contato}</td>
-                    <td><button class="delete" onclick="removerFornecedor(${index})">Excluir</button></td>
+                    <td><button class="delete" onclick="removerFornecedor('${d.id}')">Excluir</button></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function removerFornecedor(index) {
+        async function removerFornecedor(id) {
             if (confirm('Deseja excluir este fornecedor?')) {
-                fornecedores.splice(index, 1);
-                salvarDados();
-                atualizarTabelaFornecedores();
+                await deleteDoc(doc(db, 'fornecedores', id));
+                await atualizarTabelaFornecedores();
             }
         }
 
         // Funções Financeiro
-        function atualizarFinanceiro() {
-            const valorMercadoria = estoque.reduce((sum, p) => sum + (p.saldoAtual * p.precoCompra), 0);
-            const valorVendas = vendas.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
-            const valorSaidas = vendas.reduce((sum, v) => {
-                const produto = estoque.find(p => p.codigo === v.codigo);
+        async function atualizarFinanceiro() {
+            const estoqueSnap = await getDocs(collection(db, 'estoque'));
+            const vendasSnap = await getDocs(collection(db, 'vendas'));
+
+            const estoqueData = estoqueSnap.docs.map(d => d.data());
+            const vendasData = vendasSnap.docs.map(d => d.data());
+
+            const valorMercadoria = estoqueData.reduce((sum, p) => sum + (p.saldoAtual * p.precoCompra), 0);
+            const valorVendas = vendasData.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
+            const valorSaidas = vendasData.reduce((sum, v) => {
+                const produto = estoqueData.find(p => p.codigo === v.codigo);
                 return sum + (v.quantidade * (produto ? produto.precoCompra : 0));
             }, 0);
             const saldo = valorVendas - valorSaidas;
@@ -459,23 +517,22 @@
             document.getElementById('valorSaidas').textContent = formatter.format(valorSaidas);
             document.getElementById('saldoFinanceiro').textContent = formatter.format(saldo);
 
-            atualizarResumoGeral();
+            await atualizarResumoGeral();
         }
 
         // Funções Geral
-        function definirCapitalGeral() {
+        async function definirCapitalGeral() {
             const capital = parseFloat(document.getElementById('geralCapitalInicial').value);
             if (isNaN(capital) || capital < 0) {
                 alert('Insira um valor válido para o capital inicial.');
                 return;
             }
-            geralCapitalInicial = capital;
-            salvarDados();
-            atualizarResumoGeral();
+            await setDoc(doc(db, 'config', 'capital'), { valor: capital });
+            await atualizarResumoGeral();
             document.getElementById('geralCapitalInicial').value = '';
         }
 
-        function adicionarMovimentacaoGeral() {
+        async function adicionarMovimentacaoGeral() {
             const data = document.getElementById('geralDataMovimentacao').value;
             const valor = parseFloat(document.getElementById('geralValorMovimentacao').value);
             const descricao = document.getElementById('geralDescricaoMovimentacao').value;
@@ -485,45 +542,56 @@
                 return;
             }
 
-            geralMovimentacoes.push({ tipo: 'saida', data, valor, descricao });
-            salvarDados();
-            atualizarTabelaGeral();
+            await addDoc(collection(db, 'geralMovimentacoes'), { tipo: 'saida', data, valor, descricao });
+            await atualizarTabelaGeral();
             limparFormulario('geral');
         }
 
-        function atualizarTabelaGeral() {
+        async function atualizarTabelaGeral() {
             const tbody = document.querySelector('#tabelaGeral tbody');
             tbody.innerHTML = '';
-            geralMovimentacoes.forEach((mov, index) => {
+            const querySnapshot = await getDocs(collection(db, 'geralMovimentacoes'));
+            querySnapshot.forEach((d) => {
+                const mov = d.data();
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${mov.data}</td>
                     <td>Saída (Compra)</td>
                     <td>${formatter.format(mov.valor)}</td>
                     <td>${mov.descricao}</td>
-                    <td><button class="delete" onclick="removerMovimentacaoGeral(${index})">Excluir</button></td>
+                    <td><button class="delete" onclick="removerMovimentacaoGeral('${d.id}')">Excluir</button></td>
                 `;
                 tbody.appendChild(tr);
             });
-            atualizarResumoGeral();
+            await atualizarResumoGeral();
         }
 
-        function removerMovimentacaoGeral(index) {
+        async function removerMovimentacaoGeral(id) {
             if (confirm('Deseja excluir esta movimentação?')) {
-                geralMovimentacoes.splice(index, 1);
-                salvarDados();
-                atualizarTabelaGeral();
+                await deleteDoc(doc(db, 'geralMovimentacoes', id));
+                await atualizarTabelaGeral();
             }
         }
 
-        function atualizarResumoGeral() {
-            const valorVendas = vendas.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
-            const valorSaidas = vendas.reduce((sum, v) => {
-                const produto = estoque.find(p => p.codigo === v.codigo);
+        async function atualizarResumoGeral() {
+            const estoqueSnap = await getDocs(collection(db, 'estoque'));
+            const vendasSnap = await getDocs(collection(db, 'vendas'));
+            const movimentacoesSnap = await getDocs(collection(db, 'geralMovimentacoes'));
+            const capitalDoc = await getDoc(doc(db, 'config', 'capital'));
+
+            const estoqueData = estoqueSnap.docs.map(d => d.data());
+            const vendasData = vendasSnap.docs.map(d => d.data());
+            const movimentacoesData = movimentacoesSnap.docs.map(d => d.data());
+
+            const geralCapitalInicial = capitalDoc.exists() ? capitalDoc.data().valor : 0;
+
+            const valorVendas = vendasData.reduce((sum, v) => sum + (v.quantidade * v.precoVenda), 0);
+            const valorSaidas = vendasData.reduce((sum, v) => {
+                const produto = estoqueData.find(p => p.codigo === v.codigo);
                 return sum + (v.quantidade * (produto ? produto.precoCompra : 0));
             }, 0);
             const totalEntradas = valorVendas - valorSaidas;
-            const totalSaidas = geralMovimentacoes
+            const totalSaidas = movimentacoesData
                 .filter(m => m.tipo === 'saida')
                 .reduce((sum, m) => sum + m.valor, 0);
             const saldo = geralCapitalInicial + totalEntradas - totalSaidas;
@@ -535,14 +603,6 @@
         }
 
         // Funções Auxiliares
-        function salvarDados() {
-            localStorage.setItem('estoque', JSON.stringify(estoque));
-            localStorage.setItem('vendas', JSON.stringify(vendas));
-            localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
-            localStorage.setItem('geralMovimentacoes', JSON.stringify(geralMovimentacoes));
-            localStorage.setItem('geralCapitalInicial', geralCapitalInicial);
-        }
-
         function limparFormulario(tipo) {
             if (tipo === 'produto') {
                 document.getElementById('produtoCodigo').value = '';
@@ -575,49 +635,4 @@
         }
     </script>
 </body>
-<script type="module" src="script.js"></script>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBkh-Is_r0BwuQcnEW1lzIAxS49q3ZkJIc",
-    authDomain: "ponto-util-51954.firebaseapp.com",
-    projectId: "ponto-util-51954",
-    storageBucket: "ponto-util-51954.firebasestorage.app",
-    messagingSenderId: "349199654027",
-    appId: "1:349199654027:web:4defbd961856b2e9d6488e",
-    measurementId: "G-T3JVXWSBJN"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Teste Firebase</title>
-</head>
-<body>
-  <h1>Meu site com Firebase 🚀</h1>
-
-  <button onclick="salvarUsuario('Maria', 25)">Salvar Usuário</button>
-  <button onclick="carregarUsuarios()">Carregar Usuários</button>
-
-  <script type="module" src="script.js"></script>
-</body>
-</html>
-
-</script>
-
 </html>
